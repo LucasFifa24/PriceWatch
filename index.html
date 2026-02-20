@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PriceWatch — Alerts</title>
+  <meta name="description" content="Set price alerts for stocks, crypto, and indices." />
+  <meta name="theme-color" content="#0a0a0f" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c27;
+      --border: #2a2a3a;
+      --accent: #00ff88;
+      --accent2: #ff3b6b;
+      --accent3: #4d8eff;
+      --text: #e8e8f0;
+      --muted: #6b6b85;
+      --font-display: 'Syne', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 16px 100px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    header {
+      padding: 32px 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.5px;
+    }
+
+    .logo span { color: var(--accent); }
+
+    .install-btn {
+      display: none;
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 6px 12px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+
+    .install-btn:hover {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .install-btn.visible { display: block; }
+
+    /* Notification banner */
+    .notif-banner {
+      background: linear-gradient(135deg, #1a1a10, #1a1400);
+      border: 1px solid #3a3000;
+      border-left: 3px solid #ffcc00;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #ffcc00;
+      margin-bottom: 20px;
+      display: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .notif-banner.visible { display: block; }
+    .notif-banner:hover { opacity: 0.8; }
+
+    /* Add alert card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 24px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent3));
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* Symbol search */
+    .search-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+    }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+
+    input[type="text"]:focus, input[type="number"]:focus, select:focus {
+      border-color: var(--accent);
+    }
+
+    input::placeholder { color: var(--muted); }
+
+    select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6b85' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+
+    select option { background: var(--surface2); }
+
+    /* Suggestions dropdown */
+    .suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-top: none;
+      z-index: 100;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .suggestions.open { display: block; }
+
+    .suggestion-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      transition: background 0.1s;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .suggestion-item:hover { background: var(--border); }
+
+    .suggestion-sym {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .suggestion-name {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+      max-width: 60%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Price row */
+    .price-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .field-label {
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Current price display */
+    .current-price-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .current-price-val {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    .current-price-val.loading { color: var(--muted); font-size: 14px; }
+
+    /* Direction toggles */
+    .direction-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .dir-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .dir-btn.active-above {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,255,136,0.06);
+    }
+
+    .dir-btn.active-below {
+      border-color: var(--accent2);
+      color: var(--accent2);
+      background: rgba(255,59,107,0.06);
+    }
+
+    /* Submit */
+    .add-btn {
+      width: 100%;
+      background: var(--accent);
+      border: none;
+      color: var(--bg);
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+
+    .add-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .add-btn:active { transform: translateY(0); }
+    .add-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+    /* Alerts list */
+    .alerts-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .alerts-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .alerts-count {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 11px;
+      padding: 3px 8px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 13px;
+      border: 1px dashed var(--border);
+    }
+
+    .empty-icon { font-size: 32px; margin-bottom: 12px; }
+
+    /* Alert item */
+    .alert-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 16px 18px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      animation: slideIn 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .alert-item.triggered {
+      border-color: var(--accent);
+      animation: pulse 1s ease 3;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); }
+      50% { box-shadow: 0 0 0 6px rgba(0,255,136,0.15); }
+    }
+
+    .alert-left { flex: 1; }
+
+    .alert-sym {
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.3px;
+    }
+
+    .alert-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .alert-condition {
+      font-size: 12px;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-above {
+      background: rgba(0,255,136,0.1);
+      border: 1px solid rgba(0,255,136,0.3);
+      color: var(--accent);
+    }
+
+    .badge-below {
+      background: rgba(255,59,107,0.1);
+      border: 1px solid rgba(255,59,107,0.3);
+      color: var(--accent2);
+    }
+
+    .alert-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .alert-target {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .alert-current {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .delete-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .delete-btn:hover {
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 12px 20px;
+      z-index: 999;
+      transition: transform 0.3s ease;
+      white-space: nowrap;
+      max-width: 90vw;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* TV widget overlay (hidden but used for price) */
+    #tv-container { display: none; }
+
+    /* Status dot */
+    .status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 6px;
+      animation: blink 2s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    .checking-label {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo">Price<span>Watch</span></div>
+    <button class="install-btn" id="installBtn">+ Install App</button>
+  </header>
+
+  <div class="notif-banner" id="notifBanner">
+    ⚠ Enable notifications to receive price alerts → tap to allow
+  </div>
+
+  <!-- Add Alert Card -->
+  <div class="card">
+    <div class="card-title">// New Alert</div>
+
+    <div class="field-label">Search symbol</div>
+    <div class="search-row">
+      <div class="search-wrap">
+        <input type="text" id="symbolInput" placeholder="BTC, AAPL, SPY, ETH…" autocomplete="off" />
+        <div class="suggestions" id="suggestions"></div>
+      </div>
+      <select id="exchangeSelect">
+        <option value="CRYPTO">Crypto</option>
+        <option value="NASDAQ">NASDAQ</option>
+        <option value="NYSE">NYSE</option>
+        <option value="FOREX">Forex</option>
+        <option value="INDEX">Index</option>
+      </select>
+    </div>
+
+    <div class="price-row">
+      <div>
+        <div class="field-label">Current price</div>
+        <div class="current-price-box">
+          <div class="current-price-val loading" id="currentPrice">— select symbol</div>
+        </div>
+      </div>
+      <div>
+        <div class="field-label">Alert price</div>
+        <input type="number" id="targetPrice" placeholder="0.00" step="any" />
+      </div>
+    </div>
+
+    <div class="field-label">Trigger when price is</div>
+    <div class="direction-row">
+      <button class="dir-btn active-above" id="btnAbove" onclick="setDir('above')">↑ Above</button>
+      <button class="dir-btn" id="btnBelow" onclick="setDir('below')">↓ Below</button>
+    </div>
+
+    <button class="add-btn" id="addBtn" onclick="addAlert()">Set Alert</button>
+  </div>
+
+  <!-- Alerts List -->
+  <div class="alerts-header">
+    <div class="alerts-title">// Active Alerts</div>
+    <div class="alerts-count" id="alertsCount">0</div>
+  </div>
+
+  <div id="alertsList">
+    <div class="empty-state">
+      <div class="empty-icon">📡</div>
+      No active alerts.<br/>Add one above to get started.
+    </div>
+  </div>
+
+  <div style="margin-top:16px; display:flex; align-items:center; justify-content:center;">
+    <div class="checking-label" id="checkingLabel" style="display:none!important;">
+      <span class="status-dot"></span>Checking prices every 30s via TradingView
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="tv-container"></div>
+
+<script>
+// ─── Base path (handles GitHub Pages sub-paths automatically) ────────────────
+const BASE_PATH = window.location.pathname.replace(/\/[^/]*$/, '') || '';
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let alerts = JSON.parse(localStorage.getItem('pw_alerts') || '[]');
+let direction = 'above';
+let selectedSymbol = null;
+let currentPrices = {}; // symbol -> price
+let deferredPrompt = null;
+let checkInterval = null;
+
+// Popular symbols for search suggestions
+const SYMBOLS = {
+  CRYPTO: [
+    { sym: 'BTCUSDT', name: 'Bitcoin' },
+    { sym: 'ETHUSDT', name: 'Ethereum' },
+    { sym: 'SOLUSDT', name: 'Solana' },
+    { sym: 'BNBUSDT', name: 'BNB' },
+    { sym: 'XRPUSDT', name: 'XRP' },
+    { sym: 'ADAUSDT', name: 'Cardano' },
+    { sym: 'DOGEUSDT', name: 'Dogecoin' },
+    { sym: 'AVAXUSDT', name: 'Avalanche' },
+    { sym: 'DOTUSDT', name: 'Polkadot' },
+    { sym: 'MATICUSDT', name: 'Polygon' },
+    { sym: 'LINKUSDT', name: 'Chainlink' },
+    { sym: 'LTCUSDT', name: 'Litecoin' },
+    { sym: 'UNIUSDT', name: 'Uniswap' },
+    { sym: 'ATOMUSDT', name: 'Cosmos' },
+    { sym: 'TRXUSDT', name: 'TRON' },
+  ],
+  NASDAQ: [
+    { sym: 'AAPL', name: 'Apple Inc.' },
+    { sym: 'MSFT', name: 'Microsoft' },
+    { sym: 'GOOGL', name: 'Alphabet' },
+    { sym: 'AMZN', name: 'Amazon' },
+    { sym: 'NVDA', name: 'NVIDIA' },
+    { sym: 'META', name: 'Meta Platforms' },
+    { sym: 'TSLA', name: 'Tesla' },
+    { sym: 'NFLX', name: 'Netflix' },
+    { sym: 'AMD', name: 'AMD' },
+    { sym: 'INTC', name: 'Intel' },
+    { sym: 'PYPL', name: 'PayPal' },
+    { sym: 'ADBE', name: 'Adobe' },
+    { sym: 'QCOM', name: 'Qualcomm' },
+    { sym: 'COIN', name: 'Coinbase' },
+    { sym: 'HOOD', name: 'Robinhood' },
+  ],
+  NYSE: [
+    { sym: 'JPM', name: 'JPMorgan Chase' },
+    { sym: 'BAC', name: 'Bank of America' },
+    { sym: 'WMT', name: 'Walmart' },
+    { sym: 'XOM', name: 'ExxonMobil' },
+    { sym: 'JNJ', name: 'Johnson & Johnson' },
+    { sym: 'V', name: 'Visa' },
+    { sym: 'MA', name: 'Mastercard' },
+    { sym: 'PG', name: 'Procter & Gamble' },
+    { sym: 'KO', name: 'Coca-Cola' },
+    { sym: 'DIS', name: 'Disney' },
+    { sym: 'SPY', name: 'S&P 500 ETF' },
+    { sym: 'QQQ', name: 'Nasdaq 100 ETF' },
+    { sym: 'GLD', name: 'Gold ETF' },
+    { sym: 'SLV', name: 'Silver ETF' },
+    { sym: 'T', name: 'AT&T' },
+  ],
+  FOREX: [
+    { sym: 'EURUSD', name: 'Euro / US Dollar' },
+    { sym: 'GBPUSD', name: 'British Pound / USD' },
+    { sym: 'USDJPY', name: 'USD / Japanese Yen' },
+    { sym: 'AUDUSD', name: 'Australian Dollar / USD' },
+    { sym: 'USDCAD', name: 'USD / Canadian Dollar' },
+    { sym: 'USDCHF', name: 'USD / Swiss Franc' },
+    { sym: 'NZDUSD', name: 'NZ Dollar / USD' },
+    { sym: 'EURGBP', name: 'Euro / British Pound' },
+  ],
+  INDEX: [
+    { sym: 'SPX', name: 'S&P 500' },
+    { sym: 'NDX', name: 'NASDAQ 100' },
+    { sym: 'DJI', name: 'Dow Jones' },
+    { sym: 'VIX', name: 'Volatility Index' },
+    { sym: 'RUT', name: 'Russell 2000' },
+    { sym: 'DAX', name: 'Germany DAX' },
+    { sym: 'FTSE', name: 'UK FTSE 100' },
+    { sym: 'NI225', name: 'Nikkei 225' },
+    { sym: 'XAUUSD', name: 'Gold Spot' },
+    { sym: 'XAGUSD', name: 'Silver Spot' },
+  ]
+};
+
+// TradingView exchange mapping for price fetch
+const TV_EXCHANGE = {
+  CRYPTO: 'BINANCE',
+  NASDAQ: 'NASDAQ',
+  NYSE: 'NYSE',
+  FOREX: 'FX',
+  INDEX: 'CBOE'
+};
+
+// ─── Price fetching via TradingView ──────────────────────────────────────────
+function getTVSymbol(sym, exchange) {
+  const ex = TV_EXCHANGE[exchange] || exchange;
+  if (exchange === 'CRYPTO') return `BINANCE:${sym}`;
+  if (exchange === 'INDEX') return `${sym}`;
+  if (exchange === 'FOREX') return `FX:${sym}`;
+  return `${ex}:${sym}`;
+}
+
+// Fetch price using TradingView's free quote endpoint
+async function fetchPrice(sym, exchange) {
+  const tvSym = getTVSymbol(sym, exchange);
+
+  // Use a CORS proxy to hit TradingView's quote scan endpoint
+  const body = JSON.stringify({
+    symbols: { tickers: [tvSym], query: { types: [] } },
+    columns: ['close', 'volume', 'change_abs', 'change']
+  });
+
+  // We use allorigins as a CORS proxy
+  const proxy = `https://api.allorigins.win/raw?url=`;
+  const target = `https://scanner.tradingview.com/global/scan`;
+
+  try {
+    const res = await fetch(proxy + encodeURIComponent(target), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    });
+    const data = await res.json();
+    if (data.data && data.data[0] && data.data[0].d) {
+      return {
+        price: data.data[0].d[0],
+        change: data.data[0].d[3]
+      };
+    }
+  } catch (e) {}
+
+  // Fallback: try a different approach via widget data
+  try {
+    const res2 = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://symbol-search.tradingview.com/symbol_search/?text=${sym}&type=`)}`)
+    // just return null on fallback fail
+  } catch(e) {}
+
+  return null;
+}
+
+async function updateCurrentPrice() {
+  if (!selectedSymbol) return;
+  const exchange = document.getElementById('exchangeSelect').value;
+  const el = document.getElementById('currentPrice');
+  el.className = 'current-price-val loading';
+  el.textContent = 'fetching…';
+
+  const result = await fetchPrice(selectedSymbol.sym, exchange);
+  if (result && result.price) {
+    const price = result.price;
+    currentPrices[selectedSymbol.sym] = price;
+    el.className = 'current-price-val';
+    el.textContent = formatPrice(price);
+
+    // suggest target
+    const targetEl = document.getElementById('targetPrice');
+    if (!targetEl.value) {
+      targetEl.value = price.toFixed(price > 100 ? 2 : price > 1 ? 4 : 6);
+    }
+  } else {
+    el.textContent = 'unavailable';
+  }
+}
+
+// ─── Check all alerts ─────────────────────────────────────────────────────────
+async function checkAllAlerts() {
+  if (alerts.length === 0) return;
+
+  for (let alert of alerts) {
+    if (alert.triggered) continue;
+    const result = await fetchPrice(alert.sym, alert.exchange);
+    if (!result || !result.price) continue;
+
+    const price = result.price;
+    currentPrices[alert.sym] = price;
+    let triggered = false;
+
+    if (alert.direction === 'above' && price >= alert.target) triggered = true;
+    if (alert.direction === 'below' && price <= alert.target) triggered = true;
+
+    if (triggered) {
+      alert.triggered = true;
+      alert.triggeredPrice = price;
+      saveAlerts();
+      fireNotification(alert, price);
+    }
+
+    // Update displayed current price
+    const el = document.querySelector(`[data-alert-id="${alert.id}"] .alert-current`);
+    if (el) el.textContent = `Now: ${formatPrice(price)}`;
+  }
+
+  renderAlerts();
+}
+
+function fireNotification(alert, price) {
+  const dir = alert.direction === 'above' ? '↑ Above' : '↓ Below';
+  const title = `🔔 ${alert.sym} Alert Triggered`;
+  const body = `Price ${dir} ${formatPrice(alert.target)} — now at ${formatPrice(price)}`;
+
+  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.showNotification(title, {
+        body,
+        icon: BASE_PATH + '/icons/icon-192.png',
+        badge: BASE_PATH + '/icons/icon-72.png',
+        vibrate: [200, 100, 200],
+        tag: alert.id,
+        data: { url: BASE_PATH + '/' }
+      });
+    });
+  }
+
+  // Also show in-app toast
+  showToast(`${title}: ${body}`, 6000);
+
+  // Highlight alert
+  const el = document.querySelector(`[data-alert-id="${alert.id}"]`);
+  if (el) el.classList.add('triggered');
+}
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function formatPrice(p) {
+  if (!p) return '—';
+  if (p >= 1000) return '$' + p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 1) return '$' + p.toFixed(4);
+  return '$' + p.toFixed(6);
+}
+
+function setDir(d) {
+  direction = d;
+  document.getElementById('btnAbove').className = 'dir-btn' + (d === 'above' ? ' active-above' : '');
+  document.getElementById('btnBelow').className = 'dir-btn' + (d === 'below' ? ' active-below' : '');
+}
+
+function showToast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function saveAlerts() {
+  localStorage.setItem('pw_alerts', JSON.stringify(alerts));
+}
+
+// ─── Search ───────────────────────────────────────────────────────────────────
+const symbolInput = document.getElementById('symbolInput');
+const suggestionsEl = document.getElementById('suggestions');
+const exchangeSelect = document.getElementById('exchangeSelect');
+
+symbolInput.addEventListener('input', () => {
+  const q = symbolInput.value.trim().toUpperCase();
+  const exchange = exchangeSelect.value;
+  const list = SYMBOLS[exchange] || [];
+
+  if (!q) { suggestionsEl.className = 'suggestions'; return; }
+
+  const matches = list.filter(s => s.sym.includes(q) || s.name.toUpperCase().includes(q)).slice(0, 7);
+
+  if (matches.length === 0) { suggestionsEl.className = 'suggestions'; return; }
+
+  suggestionsEl.innerHTML = matches.map(s => `
+    <div class="suggestion-item" data-sym="${s.sym}" data-name="${s.name}">
+      <span class="suggestion-sym">${s.sym}</span>
+      <span class="suggestion-name">${s.name}</span>
+    </div>
+  `).join('');
+  suggestionsEl.className = 'suggestions open';
+
+  // Attach events after rendering (works on mobile)
+  suggestionsEl.querySelectorAll('.suggestion-item').forEach(item => {
+    const sym = item.dataset.sym;
+    const name = item.dataset.name;
+    const pick = (e) => { e.preventDefault(); e.stopPropagation(); selectSymbol(sym, name); };
+    item.addEventListener('mousedown', pick);
+    item.addEventListener('touchend', pick, { passive: false });
+  });
+});
+
+// Use mousedown/touchstart so the dropdown doesn't close BEFORE the item click fires
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.search-wrap')) {
+    suggestionsEl.className = 'suggestions';
+  }
+});
+document.addEventListener('touchstart', e => {
+  if (!e.target.closest('.search-wrap')) {
+    suggestionsEl.className = 'suggestions';
+  }
+}, { passive: true });
+
+exchangeSelect.addEventListener('change', () => {
+  selectedSymbol = null;
+  symbolInput.value = '';
+  document.getElementById('currentPrice').textContent = '— select symbol';
+  document.getElementById('currentPrice').className = 'current-price-val loading';
+  suggestionsEl.className = 'suggestions';
+});
+
+function selectSymbol(sym, name) {
+  selectedSymbol = { sym, name };
+  symbolInput.value = sym;
+  suggestionsEl.className = 'suggestions';
+  updateCurrentPrice();
+}
+
+// ─── Add alert ────────────────────────────────────────────────────────────────
+async function addAlert() {
+  if (!selectedSymbol) { showToast('Select a symbol first'); return; }
+  const targetVal = parseFloat(document.getElementById('targetPrice').value);
+  if (isNaN(targetVal) || targetVal <= 0) { showToast('Enter a valid price'); return; }
+
+  const exchange = exchangeSelect.value;
+
+  const alert = {
+    id: Date.now().toString(),
+    sym: selectedSymbol.sym,
+    name: selectedSymbol.name,
+    exchange,
+    target: targetVal,
+    direction,
+    createdAt: new Date().toISOString(),
+    triggered: false
+  };
+
+  alerts.unshift(alert);
+  saveAlerts();
+  renderAlerts();
+  showToast(`Alert set: ${alert.sym} ${direction} ${formatPrice(targetVal)}`);
+
+  // reset
+  document.getElementById('targetPrice').value = '';
+  document.getElementById('currentPrice').textContent = '— select symbol';
+  document.getElementById('currentPrice').className = 'current-price-val loading';
+  selectedSymbol = null;
+  symbolInput.value = '';
+
+  startChecking();
+}
+
+// ─── Render alerts ────────────────────────────────────────────────────────────
+function renderAlerts() {
+  const container = document.getElementById('alertsList');
+  document.getElementById('alertsCount').textContent = alerts.length;
+
+  if (alerts.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📡</div>
+        No active alerts.<br/>Add one above to get started.
+      </div>`;
+    document.getElementById('checkingLabel').style.setProperty('display', 'none', 'important');
+    return;
+  }
+
+  document.getElementById('checkingLabel').style.removeProperty('display');
+
+  container.innerHTML = alerts.map(a => {
+    const badgeClass = a.direction === 'above' ? 'badge-above' : 'badge-below';
+    const badgeText = a.direction === 'above' ? '↑ ABOVE' : '↓ BELOW';
+    const current = currentPrices[a.sym];
+    return `
+    <div class="alert-item${a.triggered ? ' triggered' : ''}" data-alert-id="${a.id}">
+      <div class="alert-left">
+        <div class="alert-sym">${a.sym}</div>
+        <div class="alert-meta">${a.name} · ${a.exchange}</div>
+        <div class="alert-condition">
+          <span class="badge ${badgeClass}">${badgeText}</span>
+          ${a.triggered ? '<span style="color:var(--accent);font-size:11px;">✓ TRIGGERED</span>' : ''}
+        </div>
+      </div>
+      <div class="alert-right">
+        <div class="alert-target${a.direction === 'above' ? '' : ' style="color:var(--accent2)"'}">${formatPrice(a.target)}</div>
+        <div class="alert-current">${current ? 'Now: ' + formatPrice(current) : 'checking…'}</div>
+        <button class="delete-btn" onclick="removeAlert('${a.id}')">remove</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function removeAlert(id) {
+  alerts = alerts.filter(a => a.id !== id);
+  saveAlerts();
+  renderAlerts();
+  if (alerts.filter(a => !a.triggered).length === 0) stopChecking();
+}
+
+// ─── Polling ──────────────────────────────────────────────────────────────────
+function startChecking() {
+  if (checkInterval) return;
+  checkAllAlerts();
+  checkInterval = setInterval(checkAllAlerts, 30000);
+}
+
+function stopChecking() {
+  if (checkInterval) { clearInterval(checkInterval); checkInterval = null; }
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+async function requestNotifications() {
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    document.getElementById('notifBanner').className = 'notif-banner';
+    showToast('✓ Notifications enabled!');
+  }
+}
+
+function checkNotifStatus() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') {
+    document.getElementById('notifBanner').className = 'notif-banner visible';
+    document.getElementById('notifBanner').onclick = requestNotifications;
+  }
+}
+
+// ─── PWA / Service Worker ─────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register(BASE_PATH + '/sw.js', { scope: BASE_PATH + '/' }).then(reg => {
+    console.log('SW registered', reg.scope);
+  }).catch(err => console.log('SW error', err));
+}
+
+// Install prompt
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBtn').classList.add('visible');
+});
+
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') {
+    document.getElementById('installBtn').classList.remove('visible');
+    showToast('✓ App installed!');
+  }
+  deferredPrompt = null;
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+renderAlerts();
+checkNotifStatus();
+if (alerts.some(a => !a.triggered)) startChecking();
+</script>
+</body>
+</html>
