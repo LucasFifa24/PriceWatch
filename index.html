@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#050912" />
   <link rel="manifest" href="./manifest.json" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23050912'/><polyline points='10,70 35,45 55,58 90,25' fill='none' stroke='%233b82f6' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/><circle cx='90' cy='25' r='8' fill='%2360a5fa'/></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
 
@@ -671,11 +672,7 @@ async function fetchPrice(sym, category) {
 
 async function updateCurrentPrice() {
   if (!selectedSymbol) return;
-  const el = document.getElementById('currentPrice');
   const box = document.getElementById('priceBox');
-
-  el.className = 'current-price-val dim';
-  el.textContent = '';
   box.innerHTML = '<div class="spinner"></div><div class="current-price-val dim">fetching…</div>';
 
   const result = await fetchPrice(selectedSymbol.sym, currentCategory);
